@@ -88,3 +88,17 @@ export const updateProjectById = (id: string, values: ProjectDataType) => {
         console.log(error, `Error while updating project with ID ${id}`);
     }
 };
+
+//for dashboard data
+// Get a project by ID
+export const getDashboardData = () => {
+    try {
+        return AXIOS_INSTANCE.get(`/dashboardData`)
+            .then((response) => response.data)
+            .catch((error) => {
+                throw error;
+            });
+    } catch (error) {
+        console.log(error, `Error while fetching dashboard data`);
+    }
+};

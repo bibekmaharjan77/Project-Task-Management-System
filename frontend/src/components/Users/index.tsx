@@ -116,7 +116,7 @@ const UserTable = () => {
                                     </TableCell>
                                 </TableRow>
                                 : <>
-                                    {filteredData.map((user: any, index: number) => (
+                                    {filteredData.map((user: any) => (
                                         <TableRow key={user.id}>
                                             <TableCell>{user?.firstname + " " + user?.lastname}</TableCell>
                                             <TableCell>{user.email}</TableCell>

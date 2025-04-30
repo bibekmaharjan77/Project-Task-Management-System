@@ -3,7 +3,7 @@ from ..config import dbConfig
 from pydantic import ValidationError
 from flask import request, jsonify
 from bson.objectid import ObjectId
-from ..models import task_model
+from ..models import project_subtask_model
 
 
 class TasksControllers:
@@ -14,7 +14,7 @@ class TasksControllers:
             
             data = request.get_json()
             print(data,"data")
-            validated_data = task_model.TaskRequest(**data)
+            validated_data = project_subtask_model.TaskRequest(**data)
             task_dict = validated_data.to_internal_dict()
 
             result = self.client.tasks.insert_one(task_dict)
@@ -117,7 +117,7 @@ class TasksControllers:
     def updatetaskById(self, task_id):
         try:
             data = request.get_json()
-            validated_data = task_model.TaskRequest(**data)
+            validated_data = project_subtask_model.TaskRequest(**data)
             update_data = validated_data.to_internal_dict()
 
             result = self.client.tasks.update_one(

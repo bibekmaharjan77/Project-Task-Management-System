@@ -1,18 +1,17 @@
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getProjectById } from "@/api/project/projectApiServices";
+import { getProjectById, updateProjectById } from "@/api/project/projectApiServices";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ProjectDataType } from "@/types/project";
+import { ProjectDataType, Subtask } from "@/types/project";
 import PriorityBadge from "./PriorityBadge";
 import StatusBadge from "./ProjectStatusBadge";
 import { ArrowLeft, Plus, Trash } from "lucide-react";
 import { useFormik, FieldArray, FormikProvider, FormikErrors } from "formik";
 import * as Yup from "yup";
 import { useState } from "react";
-import { createProjectSubTask } from "@/api/task/taskApiServices";
-import {toast} from "react-toastify";
-import { TaskDataType } from "@/types/task";
+import { toast } from "react-toastify";
+
 
 export default function ProjectShow() {
     const { id } = useParams();
@@ -20,16 +19,36 @@ export default function ProjectShow() {
 
     useEffect(() => {
         if (id) {
-            getProjectById(id)?.then((res) => setProject(res));
+            getProjectById(id)?.then((res) => {
+                setProject(res)
+                if (res) {
+                    formik.setValues({
+                        name: res.name ?? "",
+                        description: res.description ?? "",
+                        start_date: res.start_date ?? "",
+                        end_date: res.end_date ?? "",
+                        priority: res.priority ?? "Medium",
+                        status: res.status ?? "Planning",
+                        subtasks: res.subtasks?.length > 0
+                            ? res.subtasks
+                            : [{ title: "", description: "", assign_to: "", status: "To Do" }],
+                    });
+                }
+            });
         }
     }, [id]);
 
     const formik = useFormik({
         initialValues: {
-            project_id: id,
+            name: project?.name ?? "",
+            description: project?.description ?? "",
+            start_date: project?.start_date ?? "",
+            end_date: project?.end_date ?? "",
+            priority: project?.priority ?? "Medium",
+            status: project?.status ?? "Planning",
             subtasks: [
-                { title: "", description: "", assigned_to: "" },
-            ] as TaskDataType[],
+                { title: "", description: "", assign_to: "", status: "To Do" },
+            ] as Subtask[],
         },
         validationSchema: Yup.object({
             subtasks: Yup.array()
@@ -37,19 +56,21 @@ export default function ProjectShow() {
                     Yup.object().shape({
                         title: Yup.string().required("Title is required"),
                         description: Yup.string().required("Description is required"),
-                        assigned_to: Yup.string().required("Assigned To is required"),
+                        assign_to: Yup.string().required("Assigned To is required"),
+                        status: Yup.string()
+                            .oneOf(["To Do", "In Progress", "Done"])
+                            .required("Status is required"),
                     })
                 )
                 .min(1, "At least one subtask is required"),
         }),
         onSubmit: async (values) => {
-            console.log("Submitted subtasks:", values);
-            // You can call your API to save subtasks here
-            const data = await createProjectSubTask(values);
-                                if (data.stausCode === 201) {
-                                    toast.success(data?.message ?? "")
-            
-                                }
+            console.log(values, "values")
+            const data = await updateProjectById(id ?? "", values);
+            console.log(data)
+            if (data.statusCode === 200) {
+                toast.success(data?.message ?? "")
+            }
         },
     });
 
@@ -89,8 +110,8 @@ export default function ProjectShow() {
                             {({ remove, push }) => (
                                 <>
                                     {values.subtasks.map((task, index) => (
-                                        <div key={index} className="space-y-2 border p-4 rounded-md flex gap-4 flex-wrap">
-                                            <div className="flex flex-col gap-1 w-full md:w-[30%]">
+                                        <div key={index} className="space-y-2 border p-2 rounded-md flex gap-4 flex-nowrap">
+                                            <div className="flex flex-col gap-1 w-full md:w-[25%]">
                                                 <Input
                                                     name={`subtasks[${index}].title`}
                                                     value={task.title}
@@ -100,13 +121,13 @@ export default function ProjectShow() {
                                                 />
                                                 {Array.isArray(errors.subtasks) &&
                                                     touched.subtasks?.[index]?.title &&
-                                                    (errors.subtasks as FormikErrors<TaskDataType[]>)[index]?.title && (
+                                                    (errors.subtasks as FormikErrors<Subtask[]>)[index]?.title && (
                                                         <div className="text-red-500 text-sm">
-                                                            {(errors.subtasks as FormikErrors<TaskDataType[]>)[index]?.title}
+                                                            {(errors.subtasks as FormikErrors<Subtask[]>)[index]?.title}
                                                         </div>
                                                     )}
                                             </div>
-                                            <div className="flex flex-col gap-1 w-full md:w-[30%]">
+                                            <div className="flex flex-col gap-1 w-full md:w-[25%]">
                                                 <Input
                                                     name={`subtasks[${index}].description`}
                                                     value={task.description}
@@ -116,29 +137,50 @@ export default function ProjectShow() {
                                                 />
                                                 {Array.isArray(errors.subtasks) &&
                                                     touched.subtasks?.[index]?.description &&
-                                                    (errors.subtasks as FormikErrors<TaskDataType[]>)[index]?.description && (
+                                                    (errors.subtasks as FormikErrors<Subtask[]>)[index]?.description && (
                                                         <div className="text-red-500 text-sm">
-                                                            {(errors.subtasks as FormikErrors<TaskDataType[]>)[index]?.description}
+                                                            {(errors.subtasks as FormikErrors<Subtask[]>)[index]?.description}
                                                         </div>
                                                     )}
                                             </div>
-                                            <div className="flex flex-col gap-1 w-full md:w-[30%]">
+                                            <div className="flex flex-col gap-1 w-full md:w-[25%]">
                                                 <Input
-                                                    name={`subtasks[${index}].assigned_to`}
-                                                    value={task.assigned_to}
+                                                    name={`subtasks[${index}].assign_to`}
+                                                    value={task.assign_to}
                                                     onChange={handleChange}
                                                     onBlur={handleBlur}
                                                     placeholder="Assigned To"
                                                 />
                                                 {Array.isArray(errors.subtasks) &&
-                                                    touched.subtasks?.[index]?.assigned_to &&
-                                                    (errors.subtasks as FormikErrors<TaskDataType[]>)[index]?.assigned_to && (
+                                                    touched.subtasks?.[index]?.assign_to &&
+                                                    (errors.subtasks as FormikErrors<Subtask[]>)[index]?.assign_to && (
                                                         <div className="text-red-500 text-sm">
-                                                            {(errors.subtasks as FormikErrors<TaskDataType[]>)[index]?.assigned_to}
+                                                            {(errors.subtasks as FormikErrors<Subtask[]>)[index]?.assign_to}
                                                         </div>
                                                     )}
                                             </div>
-                                            <div className="flex ">
+                                            <div className="flex flex-col gap-1 w-full md:w-[20%]">
+                                                <select
+                                                    name={`subtasks[${index}].status`}
+                                                    value={task.status}
+                                                    onChange={handleChange}
+                                                    onBlur={handleBlur}
+                                                    className="border rounded-md p-2"
+                                                >
+                                                    <option value="">Select Status</option>
+                                                    <option value="To Do">To Do</option>
+                                                    <option value="In Progress">In Progress</option>
+                                                    <option value="Done">Done</option>
+                                                </select>
+                                                {Array.isArray(errors.subtasks) &&
+                                                    touched.subtasks?.[index]?.status &&
+                                                    (errors.subtasks as FormikErrors<Subtask[]>)[index]?.status && (
+                                                        <div className="text-red-500 text-sm">
+                                                            {(errors.subtasks as FormikErrors<Subtask[]>)[index]?.status}
+                                                        </div>
+                                                    )}
+                                            </div>
+                                            <div className="flex md:w-[10%]">
                                                 <Button
                                                     variant="destructive"
                                                     type="button"
@@ -153,7 +195,7 @@ export default function ProjectShow() {
                                         </div>
                                     ))}
                                     <div className="w-full flex justify-between">
-                                        <Button type="button" onClick={() => push({ title: "", description: "", assignedTo: "" })} className="mt-2 cursor-pointer">
+                                        <Button type="button" onClick={() => push({ title: "", description: "", assign_to: "" })} className="mt-2 cursor-pointer">
                                             <Plus /> Add More
                                         </Button>
                                         <Button type="submit" className="mt-2 bg-green-600 hover:scale-110 hover:bg-green-900 cursor-pointer">

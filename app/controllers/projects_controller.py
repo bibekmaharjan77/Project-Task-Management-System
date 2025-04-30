@@ -4,7 +4,8 @@ from pydantic import ValidationError
 from flask import request, jsonify
 from bson.objectid import ObjectId
 from ..models import project_model
-
+from ..models import project_subtask_model
+from bson.son import SON
 
 class ProjectsControllers:
     client = dbConfig.DB_Config()
@@ -81,6 +82,7 @@ class ProjectsControllers:
 
             # Pagination logic
             skip = (page - 1) * per_page
+
             total_projects = self.client.projects.count_documents(query_filter)
 
             # Querying the DB
@@ -130,9 +132,30 @@ class ProjectsControllers:
 
     def updateProjectById(self, project_id):
         try:
-            data = request.get_json()
+            data = request.get_json() or {}
+            subtasks_data = data.get('subtasks', [])
+
             validated_data = project_model.ProjectRequest(**data)
             update_data = validated_data.to_internal_dict()
+
+            # Subtasks Handling
+            validated_subtasks = []
+            if subtasks_data:
+                for subtask in subtasks_data:
+                    subtask_payload = {
+                        "project_id": str(project_id),
+                        "title": subtask.get("title", ""),
+                        "description": subtask.get("description", ""),
+                        "assign_to": subtask.get("assign_to", ""),  # Fix field name
+                        "status": subtask.get("status", "To Do")  # Default status if not provided
+                    }
+                    print(subtask_payload, "subtask_payload")
+                    subtask_obj = project_subtask_model.SubTaskRequest(**subtask_payload)
+                    validated_subtasks.append(subtask_obj.to_internal_dict())
+
+                update_data['subtasks'] = validated_subtasks
+            else:
+                update_data['subtasks'] = []
 
             result = self.client.projects.update_one(
                 {"_id": ObjectId(project_id)},
@@ -149,8 +172,83 @@ class ProjectsControllers:
                 "project": updated_project,
                 "statusCode": 200
             }), 200
+
         except ValidationError as e:
-            return jsonify({"errors": e.errors()}), 400
+            return jsonify({
+                "errors": [
+                    {
+                        "loc": err.get("loc"),
+                        "msg": err.get("msg").replace("Value error, ", ""),
+                        "type": err.get("type")
+                    }
+                    for err in e.errors()
+                ]
+            }), 400
         except Exception as e:
             print(e)
-            return jsonify({"message": f"An error occurred: {e}"}), 500
+            return jsonify({"errors": str(e)}), 500
+
+
+
+
+    def getDataForDashboard(self):
+        try:
+            # Total project count
+            total_projects = self.client.projects.count_documents({})
+
+            # Projects with "In Progress" status
+            total_TodoProjects = self.client.projects.count_documents({"status": "In Progress"})
+
+            # Projects with "Completed" status
+            total_InProgressProjects = self.client.projects.count_documents({"status": "Completed"})
+
+            # Total user count
+            total_userCount = self.client.users.count_documents({})
+
+            # Aggregation to get month-wise project count
+            pipeline = [
+                {
+                    "$addFields": {
+                        "startDateConverted": { "$toDate": "$start_date" }
+                    }
+                },
+                {
+                    "$project": {
+                        "year": { "$year": "$startDateConverted" },
+                        "month": { "$month": "$startDateConverted" }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": { "year": "$year", "month": "$month" },
+                        "projectCount": { "$sum": 1 }
+                    }
+                },
+                {
+                    "$sort": SON([("_id.year", 1), ("_id.month", 1)])
+                }
+            ]
+            
+            monthly_projects = list(self.client.projects.aggregate(pipeline))
+
+            # Format the monthly project count
+            monthwise_counts = [
+                {
+                    "year": project["_id"]["year"],
+                    "month": project["_id"]["month"],
+                    "projectCount": project["projectCount"]
+                }
+                for project in monthly_projects
+            ]
+            
+            return jsonify({
+                "projectCount": total_projects,
+                "todoProjectCount": total_TodoProjects,
+                "inProgressProjectCount": total_InProgressProjects,
+                "userCount": total_userCount,
+                "monthwiseProjectCount": monthwise_counts,  # Adding monthwise project count to the response
+                "statusCode": 200
+            }), 200
+        except Exception as e:
+            print(e)
+            return jsonify({"errors": str(e)}), 500
