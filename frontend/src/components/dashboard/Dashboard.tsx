@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -5,32 +6,60 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import axios from "axios";
+import { getDashboardData } from "@/api/project/projectApiServices";
+
 
 const Dashboard = () => {
-  const stats = [
-    { title: "Total Projects", value: 42 },
-    { title: "Pending Projects", value: 10 },
-    { title: "Completed Projects", value: 30 },
-    { title: "Users Created", value: 18 },
-  ];
+  const [stats, setStats] = useState([
+    { title: "Total Projects", value: 0 },
+    { title: "Pending Projects", value: 0 },
+    { title: "Completed Projects", value: 0 },
+    { title: "Users Created", value: 0 },
+  ]);
 
-  const barData = [
-    { name: "Jan", projects: 5 },
-    { name: "Feb", projects: 8 },
-    { name: "Mar", projects: 12 },
-    { name: "Apr", projects: 9 },
-  ];
-
-  const pieData = [
-    { name: "Completed", value: 30 },
-    { name: "Pending", value: 10 },
-    { name: "Ongoing", value: 2 },
-  ];
+  const [barData, setBarData] = useState<{ name: string; projects: number }[]>([]);
 
   const COLORS = ["#34D399", "#FBBF24", "#60A5FA"];
 
+  const pieData = [
+    { name: "Completed", value: stats[2].value },
+    { name: "Pending", value: stats[1].value },
+    { name: "Ongoing", value: stats[0].value - stats[1].value - stats[2].value },
+  ];
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // const response = await axios.get("/api/projects/dashboard");
+        // const data = response.data;
+        const data = await getDashboardData();
+        console.log(data, "dashboard data");
+
+        setStats([
+          { title: "Total Projects", value: data.projectCount },
+          { title: "Pending Projects", value: data.todoProjectCount },
+          { title: "Completed Projects", value: data.inProgressProjectCount },
+          { title: "Users Created", value: data.userCount },
+        ]);
+
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const formattedBarData = data.monthwiseProjectCount.map((item: any) => ({
+          name: monthNames[item.month - 1],
+          projects: item.projectCount,
+        }));
+
+        setBarData(formattedBarData);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   return (
-    <div className="p-6 space-y-6 h-full ">
+    <div className="p-6 space-y-6 h-full">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
           <Card key={stat.title} className="text-center">

@@ -70,7 +70,7 @@ const Sidebar = () => {
 
   return (
     <div className="bg-gray-100 dark:bg-sidebar">
-      <div className={`"py-6 text-lg font-bold ${state === "expanded" ? "px-4" : "flex w-full justify-center items-center"} uppercase"`}>{state === "expanded" ? "ProjectB" : "PB"}</div>
+      <div className={`"py-6 text-lg font-bold ${state === "expanded" ? "px-4" : "flex w-full justify-center items-center"} uppercase"`}>{state === "expanded" ? "Project & Task Manager" : "P&TM"}</div>
       {isLoggedIn && (
         <NavLinks />
       )}

@@ -26,6 +26,9 @@ const ProjectForm = ({ fetchProjects, editId }: { fetchProjects: any, editId: st
                         end_date: projectData.end_date?.split("T")[0] || "",
                         priority: projectData.priority || "Medium",
                         status: projectData.status || "Planning",
+                        subtasks: projectData.subtasks?.length > 0
+                            ? projectData.subtasks
+                            : [{ title: "", description: "", assign_to: "", status: "To Do" }],
                     });
                 }
             })).catch((err) => {
@@ -53,6 +56,7 @@ const ProjectForm = ({ fetchProjects, editId }: { fetchProjects: any, editId: st
         onSubmit: async (values, { setErrors, resetForm }) => {
             try {
                 if (editId) {
+                    values.subtasks = values.subtasks
                     const data = await updateProjectById(editId, values);
                     if (data.stausCode === 200) {
                         toast.success(data?.message ?? "")

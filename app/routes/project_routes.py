@@ -24,3 +24,7 @@ def delete_project_by_id(project_id):
 @projects_blueprint.route('/projects/<string:project_id>', methods=["PUT"])
 def update_project_by_id(project_id):
     return controller.updateProjectById(project_id)
+
+@projects_blueprint.route("/dashboardData", methods=["GET"])
+def get_dashboardData():
+    return controller.getDataForDashboard()
